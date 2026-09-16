@@ -33,5 +33,9 @@ export function HighlightedSentence({ result }: { result: AnalysisResult }) {
     );
   }
 
-  return <div className="highlighted-sentence">{pieces}</div>;
+  return (
+    <div className="highlighted-sentence" data-testid="highlighted-sentence">
+      {pieces}
+    </div>
+  );
 }
