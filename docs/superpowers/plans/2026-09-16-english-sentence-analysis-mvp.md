@@ -4,9 +4,9 @@
 
 **Goal:** 构建一个响应式单页网页，让用户提交一个英文句子后获得四色句法成分标注和自然中文翻译。
 
-**Architecture:** 使用 Next.js App Router 构建单体应用。浏览器只负责输入和展示，`/api/analyze` 完成输入校验、限流、AI 调用和结果校验；领域规则、AI 适配器和 UI 组件保持独立，便于分别测试和替换。
+**Architecture:** 使用 Next.js App Router 构建单体应用。浏览器只负责输入和展示，`/api/analyze` 完成输入校验、限流、DeepSeek 调用和结果校验；模型返回覆盖完整原句的顺序片段，服务端验证片段可无损拼回原句后自行计算偏移量。领域规则、AI 适配器和 UI 组件保持独立，便于分别测试和替换。
 
-**Tech Stack:** Next.js、React、TypeScript、Zod、OpenAI Node SDK、Vitest、Testing Library、Playwright、pnpm
+**Tech Stack:** Next.js、React、TypeScript、Zod、DeepSeek Responses API、OpenAI Node SDK、Vitest、Testing Library、Playwright、pnpm
 
 ---
 
@@ -24,11 +24,12 @@ src/
     HighlightedSentence.tsx       # 按偏移量渲染四色原句
     GrammarLegend.tsx             # 四色文字图例
   domain/
-    analysis.ts                   # 分析结果类型、Zod schema 和结果校验
+    analysis.ts                   # 模型输出、领域结果类型和 Zod schema
+    alignSegments.ts              # 无损原文对齐和偏移量计算
     input.ts                      # 单句输入校验
   server/
     analyzeSentence.ts            # 分析用例编排
-    modelAnalyzer.ts              # AI 接口与 OpenAI 实现
+    modelAnalyzer.ts              # AI 接口与 DeepSeek 实现
     prompt.ts                     # 稳定的语法标注提示词
     rateLimit.ts                  # MVP 内存限流
 tests/
@@ -36,6 +37,7 @@ tests/
   components/HighlightedSentence.test.tsx
   components/SentenceAnalyzer.test.tsx
   domain/analysis.test.ts
+  domain/alignSegments.test.ts
   domain/input.test.ts
   server/analyzeSentence.test.ts
 e2e/analyze.spec.ts
@@ -216,87 +218,132 @@ git add src/domain/input.ts tests/domain/input.test.ts
 git commit -m "feat: validate sentence input"
 ```
 
-### Task 3: 定义并校验四色分析结果
+### Task 3: 定义模型输出并实现无损原文对齐
 
 **Files:**
 - Create: `src/domain/analysis.ts`
+- Create: `src/domain/alignSegments.ts`
 - Test: `tests/domain/analysis.test.ts`
+- Test: `tests/domain/alignSegments.test.ts`
 
-- [ ] **Step 1: 写 schema 和偏移量测试**
+- [ ] **Step 1: 写模型 Schema 和原文对齐测试**
 
 ```ts
 // tests/domain/analysis.test.ts
-import { describe, expect, it } from "vitest";
-import { validateAnalysis } from "@/domain/analysis";
+import { expect, it } from "vitest";
+import { modelAnalysisSchema } from "@/domain/analysis";
 
-const sentence = "She left because she was tired.";
+it("accepts full ordered parts including neutral text", () => {
+  expect(modelAnalysisSchema.parse({
+    parts: [
+      { text: "She", type: "noun" },
+      { text: " ", type: "neutral" },
+      { text: "left", type: "verb" },
+      { text: ".", type: "neutral" }
+    ],
+    translation: "她离开了。"
+  }).parts).toHaveLength(4);
+});
+```
 
-it("accepts ordered non-overlapping segments", () => {
-  expect(validateAnalysis(sentence, {
+```ts
+// tests/domain/alignSegments.test.ts
+import { expect, it } from "vitest";
+import { alignSegments } from "@/domain/alignSegments";
+
+it("computes offsets while preserving neutral text", () => {
+  expect(alignSegments("She left.", {
+    parts: [
+      { text: "She", type: "noun" },
+      { text: " ", type: "neutral" },
+      { text: "left", type: "verb" },
+      { text: ".", type: "neutral" }
+    ],
+    translation: "她离开了。"
+  })).toEqual({
+    original: "She left.",
     segments: [
       { start: 0, end: 3, type: "noun" },
-      { start: 4, end: 8, type: "verb" },
-      { start: 9, end: 31, type: "adverb" }
+      { start: 4, end: 8, type: "verb" }
     ],
-    translation: "她因为累了而离开。"
-  })).toMatchObject({ original: sentence });
+    translation: "她离开了。"
+  });
 });
 
-it.each([
-  [[{ start: -1, end: 3, type: "noun" }], "out of bounds"],
-  [[{ start: 0, end: 8, type: "noun" }, { start: 4, end: 8, type: "verb" }], "overlap"],
-  [[{ start: 4, end: 4, type: "verb" }], "empty segment"]
-])("rejects invalid segments %#", (segments, message) => {
-  expect(() => validateAnalysis(sentence, { segments, translation: "翻译" })).toThrow(message);
+it("rejects any model rewrite of the original", () => {
+  expect(() => alignSegments("She  left.", {
+    parts: [
+      { text: "She left.", type: "noun" }
+    ],
+    translation: "她离开了。"
+  })).toThrow("model parts do not reproduce original");
 });
 ```
 
 - [ ] **Step 2: 运行测试并确认失败**
 
-Run: `pnpm test:run tests/domain/analysis.test.ts`
+Run: `pnpm test:run tests/domain/analysis.test.ts tests/domain/alignSegments.test.ts`
 
-Expected: FAIL，分析模块不存在。
+Expected: FAIL，领域模块不存在。
 
-- [ ] **Step 3: 实现类型、schema 和校验器**
+- [ ] **Step 3: 实现模型类型、领域结果类型和 Schema**
 
 ```ts
 // src/domain/analysis.ts
 import { z } from "zod";
 
-export const segmentTypeSchema = z.enum(["noun", "adjective", "adverb", "verb"]);
+export const coloredSegmentTypeSchema = z.enum(["noun", "adjective", "adverb", "verb"]);
+export const modelPartTypeSchema = z.union([coloredSegmentTypeSchema, z.literal("neutral")]);
+
 export const modelAnalysisSchema = z.object({
-  segments: z.array(z.object({
-    start: z.number().int(),
-    end: z.number().int(),
-    type: segmentTypeSchema
-  })),
+  parts: z.array(z.object({
+    text: z.string().min(1),
+    type: modelPartTypeSchema
+  })).min(1),
   translation: z.string().min(1)
 });
 
-export type AnalysisResult = z.infer<typeof modelAnalysisSchema> & { original: string };
+export type ModelAnalysis = z.infer<typeof modelAnalysisSchema>;
+export type SegmentType = z.infer<typeof coloredSegmentTypeSchema>;
+export type AnalysisResult = {
+  original: string;
+  segments: Array<{ start: number; end: number; type: SegmentType }>;
+  translation: string;
+};
+```
 
-export function validateAnalysis(original: string, raw: unknown): AnalysisResult {
-  const parsed = modelAnalysisSchema.parse(raw);
-  let previousEnd = 0;
-  for (const segment of parsed.segments) {
-    if (segment.start < 0 || segment.end > original.length) throw new Error("segment out of bounds");
-    if (segment.end <= segment.start) throw new Error("empty segment");
-    if (segment.start < previousEnd) throw new Error("segment overlap");
-    previousEnd = segment.end;
+- [ ] **Step 4: 实现无损对齐和服务端偏移量计算**
+
+```ts
+// src/domain/alignSegments.ts
+import { modelAnalysisSchema, type AnalysisResult } from "@/domain/analysis";
+
+export function alignSegments(original: string, raw: unknown): AnalysisResult {
+  const analysis = modelAnalysisSchema.parse(raw);
+  if (analysis.parts.map(part => part.text).join("") !== original) {
+    throw new Error("model parts do not reproduce original");
   }
-  return { original, ...parsed };
+
+  let cursor = 0;
+  const segments: AnalysisResult["segments"] = [];
+  for (const part of analysis.parts) {
+    const start = cursor;
+    cursor += part.text.length;
+    if (part.type !== "neutral") segments.push({ start, end: cursor, type: part.type });
+  }
+  return { original, segments, translation: analysis.translation };
 }
 ```
 
-- [ ] **Step 4: 验证并提交**
+- [ ] **Step 5: 验证并提交**
 
-Run: `pnpm test:run tests/domain/analysis.test.ts`
+Run: `pnpm test:run tests/domain/analysis.test.ts tests/domain/alignSegments.test.ts`
 
-Expected: 所有用例通过。
+Expected: Schema 和无损对齐测试全部通过。
 
 ```bash
-git add src/domain/analysis.ts tests/domain/analysis.test.ts
-git commit -m "feat: validate structured grammar analysis"
+git add src/domain/analysis.ts src/domain/alignSegments.ts tests/domain/analysis.test.ts tests/domain/alignSegments.test.ts
+git commit -m "feat: align model parts to original sentence"
 ```
 
 ### Task 4: 实现 AI 分析用例
@@ -317,18 +364,36 @@ import { analyzeSentence } from "@/server/analyzeSentence";
 
 it("validates model output against the original sentence", async () => {
   const model = vi.fn().mockResolvedValue({
-    segments: [{ start: 0, end: 3, type: "noun" }, { start: 4, end: 8, type: "verb" }],
+    parts: [
+      { text: "She", type: "noun" },
+      { text: " ", type: "neutral" },
+      { text: "left", type: "verb" },
+      { text: ".", type: "neutral" }
+    ],
     translation: "她离开了。"
   });
-  await expect(analyzeSentence("She left.", model)).resolves.toMatchObject({ original: "She left." });
+  await expect(analyzeSentence("She left.", model)).resolves.toEqual({
+    original: "She left.",
+    segments: [
+      { start: 0, end: 3, type: "noun" },
+      { start: 4, end: 8, type: "verb" }
+    ],
+    translation: "她离开了。"
+  });
 });
 
-it("rejects an overlapping model result", async () => {
-  const model = vi.fn().mockResolvedValue({
-    segments: [{ start: 0, end: 8, type: "noun" }, { start: 4, end: 8, type: "verb" }],
-    translation: "她离开了。"
-  });
-  await expect(analyzeSentence("She left.", model)).rejects.toThrow("segment overlap");
+it("retries once when model parts rewrite the original", async () => {
+  const model = vi.fn()
+    .mockResolvedValueOnce({
+      parts: [{ text: "She left", type: "noun" }],
+      translation: "她离开了。"
+    })
+    .mockResolvedValueOnce({
+      parts: [{ text: "She left.", type: "noun" }],
+      translation: "她离开了。"
+    });
+  await expect(analyzeSentence("She left.", model)).resolves.toMatchObject({ original: "She left." });
+  expect(model).toHaveBeenCalledTimes(2);
 });
 ```
 
@@ -343,35 +408,72 @@ Expected: FAIL，分析用例不存在。
 ```ts
 // src/server/modelAnalyzer.ts
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
-import { modelAnalysisSchema } from "@/domain/analysis";
 import { ANALYSIS_PROMPT } from "@/server/prompt";
 
 export type ModelAnalyzer = (sentence: string) => Promise<unknown>;
 
-export const openAIModelAnalyzer: ModelAnalyzer = async (sentence) => {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 30_000 });
-  const response = await client.responses.parse({
-    model: process.env.OPENAI_MODEL ?? "gpt-5-mini",
-    input: [
-      { role: "system", content: ANALYSIS_PROMPT },
-      { role: "user", content: sentence }
-    ],
-    text: { format: zodTextFormat(modelAnalysisSchema, "sentence_analysis") }
+const modelAnalysisJsonSchema: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    parts: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          text: { type: "string", minLength: 1 },
+          type: { enum: ["noun", "adjective", "adverb", "verb", "neutral"] }
+        },
+        required: ["text", "type"]
+      }
+    },
+    translation: { type: "string", minLength: 1 }
+  },
+  required: ["parts", "translation"]
+};
+
+export const deepSeekModelAnalyzer: ModelAnalyzer = async (sentence) => {
+  const client = new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    baseURL: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com",
+    timeout: Number(process.env.DEEPSEEK_TIMEOUT_MS ?? 30_000)
   });
-  if (!response.output_parsed) throw new Error("model returned no parsed output");
-  return response.output_parsed;
+  const response = await client.responses.create({
+    model: process.env.DEEPSEEK_MODEL ?? "deepseek-flash",
+    instructions: ANALYSIS_PROMPT,
+    input: sentence,
+    reasoning: { effort: "none" },
+    text: {
+      format: {
+        type: "json_schema",
+        name: "sentence_analysis",
+        schema: modelAnalysisJsonSchema
+      }
+    }
+  });
+  if (!response.output_text) throw new Error("model returned no output");
+  return JSON.parse(response.output_text);
 };
 ```
 
 ```ts
 // src/server/analyzeSentence.ts
-import { validateAnalysis } from "@/domain/analysis";
+import { alignSegments } from "@/domain/alignSegments";
 import type { ModelAnalyzer } from "@/server/modelAnalyzer";
-import { openAIModelAnalyzer } from "@/server/modelAnalyzer";
+import { deepSeekModelAnalyzer } from "@/server/modelAnalyzer";
 
-export async function analyzeSentence(sentence: string, model: ModelAnalyzer = openAIModelAnalyzer) {
-  return validateAnalysis(sentence, await model(sentence));
+export async function analyzeSentence(sentence: string, model: ModelAnalyzer = deepSeekModelAnalyzer) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return alignSegments(sentence, await model(sentence));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 ```
 
@@ -389,28 +491,31 @@ export const ANALYSIS_PROMPT = `
 规则：
 1. 按成分在外层句子中的整体作用分类，不拆解成分内部的嵌套结构。
 2. 定语从句整体标为 adjective，状语从句整体标为 adverb，名词性从句整体标为 noun。
-3. start 包含起始字符，end 不包含结束字符；偏移量必须对应用户原句。
-4. 片段按 start 升序排列，不能重叠、越界或为空。
-5. 连词、标点以及不属于四类的连接成分可以不标注。
-6. 不要改写、纠正或重新输出英文原句。
+3. parts 必须按顺序覆盖原句的每一个字符，包括所有空格和标点。
+4. 连词、标点、空格及不属于四类的连接成分标为 neutral。
+5. 所有 parts 的 text 拼接后必须与用户原句逐字符完全相等。
+6. 不要纠错、改写、规范化或省略英文原句中的任何字符。
 
 示例：
 The book that I bought yesterday is interesting.
-=> The book(noun) / that I bought yesterday(adjective) / is(verb) / interesting(adjective)
+=> The book(noun) / 空格(neutral) / that I bought yesterday(adjective) / 空格(neutral) / is(verb) / 空格(neutral) / interesting(adjective) / .(neutral)
 
 She left because she was tired.
-=> She(noun) / left(verb) / because she was tired(adverb)
+=> She(noun) / 空格(neutral) / left(verb) / 空格(neutral) / because she was tired(adverb) / .(neutral)
 
 What he said surprised everyone.
-=> What he said(noun) / surprised(verb) / everyone(noun)
+=> What he said(noun) / 空格(neutral) / surprised(verb) / 空格(neutral) / everyone(noun) / .(neutral)
 `.trim();
 ```
 
 - [ ] **Step 4: 添加环境变量示例**
 
 ```dotenv
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5-mini
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-flash
+DEEPSEEK_TIMEOUT_MS=30000
 ```
 
 - [ ] **Step 5: 验证并提交**
