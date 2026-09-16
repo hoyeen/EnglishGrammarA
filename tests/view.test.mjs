@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { renderSegments } from "../src/view.mjs";
 
 test("renders each grammar type with its semantic class", () => {
@@ -19,4 +20,12 @@ test("escapes user-provided text before rendering", () => {
 
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;/);
+});
+
+test("keeps highlighted segments close enough for natural reading", async () => {
+  const styles = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+  const segmentRule = styles.match(/\.segment\s*\{([^}]*)\}/)?.[1] ?? "";
+
+  assert.match(segmentRule, /padding:\s*\.16em\s+\.1em/);
+  assert.doesNotMatch(segmentRule, /margin/);
 });

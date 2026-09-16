@@ -204,7 +204,7 @@ textarea:focus-visible { border-radius: 8px; box-shadow: 0 0 0 3px rgba(124, 58,
   font-size: clamp(20px, 3vw, 26px);
   line-height: 2.1;
 }
-.segment { border-radius: 7px; padding: 5px 7px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.segment { border-radius: 4px; padding: .16em .1em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .segment--noun { background: var(--noun-bg); color: var(--noun-ink); }
 .segment--adjective { background: var(--adjective-bg); color: var(--adjective-ink); }
 .segment--adverb { background: var(--adverb-bg); color: var(--adverb-ink); }
