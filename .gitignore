@@ -1,2 +1,8 @@
 .superpowers/
 .worktrees/
+.next/
+node_modules/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env*.local
