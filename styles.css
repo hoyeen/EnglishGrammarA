@@ -5,8 +5,8 @@
   --ink: #27231f;
   --muted: #756e66;
   --line: #ded8d0;
-  --noun-bg: #fce7f3;
-  --noun-ink: #831843;
+  --noun-bg: #fee2e2;
+  --noun-ink: #991b1b;
   --adjective-bg: #fef3c7;
   --adjective-ink: #78350f;
   --adverb-bg: #dcfce7;
@@ -193,7 +193,7 @@ textarea:focus-visible { border-radius: 8px; box-shadow: 0 0 0 3px rgba(124, 58,
 .legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px 14px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 12px; }
 .legend li { display: flex; align-items: center; gap: 6px; }
 .dot { width: 9px; height: 9px; border-radius: 3px; }
-.dot--noun { background: #f9a8d4; }
+.dot--noun { background: #f87171; }
 .dot--adjective { background: #fcd34d; }
 .dot--adverb { background: #86efac; }
 .dot--verb { background: #d8b4fe; }

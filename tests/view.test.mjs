@@ -29,3 +29,12 @@ test("keeps highlighted segments close enough for natural reading", async () => 
   assert.match(segmentRule, /padding:\s*\.16em\s+\.1em/);
   assert.doesNotMatch(segmentRule, /margin/);
 });
+
+test("uses a soft red noun palette that is distinct from the purple verb palette", async () => {
+  const styles = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+
+  assert.match(styles, /--noun-bg:\s*#fee2e2/);
+  assert.match(styles, /--noun-ink:\s*#991b1b/);
+  assert.match(styles, /\.dot--noun\s*\{\s*background:\s*#f87171/);
+  assert.match(styles, /--verb-bg:\s*#f3e8ff/);
+});
