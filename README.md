@@ -1,27 +1,81 @@
-# 英语长难句分析 Demo
+# 句析 · 英语长难句分析
 
-这是一个不连接真实后端的交互 Demo，用于验证单页布局、四色标注和主要操作流程。
+一个面向英语学习者的响应式单页应用：粘贴一个不超过 500 字符的英文句子，获得大颗粒度的四色句法功能标注和自然中文翻译。
 
-## 本地预览
+## 四色含义
 
-在本目录运行：
+- 粉色：名词性成分
+- 黄色：形容词性成分
+- 绿色：副词性成分
+- 紫色：动词
+
+标注说明片段在整句中的整体功能，不等同于逐词词性分析。英文结果始终从用户原句按服务端验证后的偏移量切片，模型改写、漏字或错位时不会展示结果。
+
+## 技术栈
+
+- Next.js App Router、React、TypeScript
+- Zod 运行时数据校验
+- DeepSeek Responses API（通过 OpenAI Node SDK）
+- Vitest、Testing Library、Playwright
+- 本地内存限流；生产环境可配置 Upstash Redis 共享限流
+
+## 本地运行
+
+前置条件：Node.js 22、pnpm 10。
 
 ```powershell
-python -m http.server 4173 --bind 127.0.0.1
+pnpm install
+Copy-Item .env.example .env.local
 ```
 
-然后访问 `http://127.0.0.1:4173/`。
+编辑 `.env.local`，至少填写：
 
-## Demo 行为
+```dotenv
+DEEPSEEK_API_KEY=your-key
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-flash
+```
 
-- 四个示例句会显示完整的四色结构和自然中文翻译。
-- 其他英文输入会保留原文，并明确提示当前没有真实分析能力。
-- 提交时展示模拟加载状态。
-- 空输入、非英文输入和超过 500 字符的输入会显示错误信息。
-- 所有数据都在浏览器本地处理，不会上传或保存。
-
-## 测试
+启动开发服务器：
 
 ```powershell
-node --test tests/*.test.mjs
+pnpm dev
 ```
+
+访问 `http://localhost:3000`。
+
+## 环境变量
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `DEEPSEEK_API_KEY` | 无 | DeepSeek 服务端密钥，必填 |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | API 地址 |
+| `DEEPSEEK_MODEL` | `deepseek-flash` | 分析模型 |
+| `DEEPSEEK_TIMEOUT_MS` | `30000` | 单次模型请求超时 |
+| `RATE_LIMIT_MAX` | `10` | 每个限流窗口允许的请求数 |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | 限流窗口秒数 |
+| `UPSTASH_REDIS_REST_URL` | 无 | 生产共享限流地址 |
+| `UPSTASH_REDIS_REST_TOKEN` | 无 | 生产共享限流令牌 |
+
+未配置 Upstash 时使用进程内限流，只适合本地开发和单实例演示。公开部署到 Serverless 前应同时配置两个 Upstash 变量。
+
+## 验证
+
+```powershell
+pnpm test:run
+pnpm typecheck
+pnpm lint
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+端到端测试会拦截分析 API，不调用真实模型、不产生 AI 费用。
+
+## 隐私
+
+应用不建立用户句子数据库，也不在自己的业务日志中记录原句、翻译或模型原始输出。句子会发送给 DeepSeek API 完成分析；第三方服务可能依据其自身条款产生必要的合规或安全日志。限流使用经过摘要处理的客户端标识。
+
+## MVP 边界
+
+本期不包含账号、历史记录、段落/文章分析、详细语法讲解、练习课程或 AI 追问。
