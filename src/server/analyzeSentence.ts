@@ -1,5 +1,7 @@
 import { ZodError } from "zod";
 import { alignSegments } from "@/domain/alignSegments";
+import { modelResponseSchema } from "@/domain/analysis";
+import { SentenceInputError } from "@/domain/input";
 import {
   deepSeekModelAnalyzer,
   ModelAnalyzerError,
@@ -20,7 +22,13 @@ export async function analyzeSentence(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return alignSegments(sentence, await model(sentence));
+      const response = modelResponseSchema.parse(await model(sentence));
+      if (response.status !== "valid") {
+        throw new SentenceInputError(
+          response.status === "not_english" ? "NOT_ENGLISH" : "MULTIPLE_SENTENCES",
+        );
+      }
+      return alignSegments(sentence, response);
     } catch (error) {
       lastError = error;
       if (!isRetryable(error)) throw error;

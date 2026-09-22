@@ -18,9 +18,13 @@ const modelAnalysisJsonSchema: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
   properties: {
+    status: {
+      type: "string",
+      enum: ["valid", "not_english", "multiple_sentences"],
+    },
     parts: {
       type: "array",
-      minItems: 1,
+      minItems: 0,
       items: {
         type: "object",
         additionalProperties: false,
@@ -34,9 +38,9 @@ const modelAnalysisJsonSchema: Record<string, unknown> = {
         required: ["text", "type"],
       },
     },
-    translation: { type: "string", minLength: 1 },
+    translation: { type: "string" },
   },
-  required: ["parts", "translation"],
+  required: ["status", "parts", "translation"],
 };
 
 function isTransientOpenAiError(error: unknown) {

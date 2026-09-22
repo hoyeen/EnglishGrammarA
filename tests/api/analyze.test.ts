@@ -5,6 +5,7 @@ vi.mock("@/server/analyzeSentence", () => ({ analyzeSentence: vi.fn() }));
 import { POST } from "@/app/api/analyze/route";
 import { analyzeSentence } from "@/server/analyzeSentence";
 import { resetRateLimitsForTests } from "@/server/rateLimit";
+import { SentenceInputError } from "@/domain/input";
 
 function jsonRequest(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://local/api/analyze", {
@@ -26,6 +27,42 @@ describe("POST /api/analyze", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ code: "EMPTY" });
+  });
+
+  it("rejects overlong raw input before calling the model", async () => {
+    const response = await POST(jsonRequest({ sentence: ` ${"a".repeat(499)} ` }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "TOO_LONG" });
+    expect(analyzeSentence).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["NOT_ENGLISH", "目前仅支持英文句子。"],
+    ["MULTIPLE_SENTENCES", "一次只能分析一个句子。"],
+  ] as const)("returns a user-facing 400 for model-judged %s", async (code, message) => {
+    vi.mocked(analyzeSentence).mockRejectedValue(new SentenceInputError(code));
+    const logger = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await POST(jsonRequest({ sentence: "He left. She stayed" }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ code, message });
+    expect(logger).not.toHaveBeenCalled();
+  });
+
+  it("allows initials through to analysis instead of rejecting them locally", async () => {
+    const sentence = "J. K. Rowling wrote the book.";
+    vi.mocked(analyzeSentence).mockResolvedValue({
+      original: sentence,
+      segments: [{ start: 0, end: 12, type: "noun" }],
+      translation: "J. K. 罗琳写了这本书。",
+    });
+
+    const response = await POST(jsonRequest({ sentence }));
+
+    expect(response.status).toBe(200);
+    expect(analyzeSentence).toHaveBeenCalledExactlyOnceWith(sentence);
   });
 
   it("rejects non-JSON requests and extra fields", async () => {

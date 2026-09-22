@@ -24,6 +24,15 @@ export const modelAnalysisSchema = z.object({
   translation: z.string().trim().min(1),
 });
 
+export const modelResponseSchema = z.discriminatedUnion("status", [
+  modelAnalysisSchema.extend({ status: z.literal("valid") }).strict(),
+  z.object({
+    status: z.enum(["not_english", "multiple_sentences"]),
+    parts: z.array(z.never()).length(0),
+    translation: z.literal(""),
+  }).strict(),
+]);
+
 const segmentSchema = z.object({
   start: z.number().int().nonnegative(),
   end: z.number().int().positive(),

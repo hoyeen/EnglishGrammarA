@@ -8,20 +8,34 @@ export type InputValidation =
   | { ok: true; value: string }
   | { ok: false; code: InputErrorCode; message: string };
 
-const ABBREVIATION = /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc)\./gi;
+export const MAX_SENTENCE_LENGTH = 500;
+
+type SemanticInputErrorCode = Extract<InputErrorCode, "NOT_ENGLISH" | "MULTIPLE_SENTENCES">;
+
+const semanticInputMessages: Record<SemanticInputErrorCode, string> = {
+  NOT_ENGLISH: "目前仅支持英文句子。",
+  MULTIPLE_SENTENCES: "一次只能分析一个句子。",
+};
+
+export class SentenceInputError extends Error {
+  constructor(public readonly code: SemanticInputErrorCode) {
+    super(semanticInputMessages[code]);
+    this.name = "SentenceInputError";
+  }
+}
 
 export function validateSentenceInput(raw: string): InputValidation {
-  const value = raw.trim();
-
-  if (!value) {
-    return { ok: false, code: "EMPTY", message: "请先输入一个英文句子。" };
-  }
-  if (value.length > 500) {
+  if (raw.length > MAX_SENTENCE_LENGTH) {
     return {
       ok: false,
       code: "TOO_LONG",
       message: "句子不能超过 500 个字符。",
     };
+  }
+
+  const value = raw.trim();
+  if (!value) {
+    return { ok: false, code: "EMPTY", message: "请先输入一个英文句子。" };
   }
   if (!/[A-Za-z]/.test(value)) {
     return {
@@ -31,17 +45,7 @@ export function validateSentenceInput(raw: string): InputValidation {
     };
   }
 
-  const withoutAbbreviations = value.replace(ABBREVIATION, "");
-  const sentenceEndings =
-    withoutAbbreviations.match(/[.!?](?=\s+[A-Z"']|$)/g) ?? [];
-
-  if (sentenceEndings.length > 1) {
-    return {
-      ok: false,
-      code: "MULTIPLE_SENTENCES",
-      message: "一次只能分析一个句子。",
-    };
-  }
-
+  // Punctuation and mixed-language meaning are judged in the same model call
+  // as the analysis, so initials and quotations are not rejected heuristically.
   return { ok: true, value };
 }

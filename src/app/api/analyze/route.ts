@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validateSentenceInput } from "@/domain/input";
+import { SentenceInputError, validateSentenceInput } from "@/domain/input";
 import { analyzeSentence } from "@/server/analyzeSentence";
 import { consumeRateLimit } from "@/server/rateLimit";
 
@@ -51,6 +51,9 @@ export async function POST(request: Request) {
 
     return Response.json(await analyzeSentence(validation.value));
   } catch (error) {
+    if (error instanceof SentenceInputError) {
+      return errorResponse(error.code, error.message, 400);
+    }
     console.error("analysis request failed", {
       name: error instanceof Error ? error.name : "UnknownError",
     });

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { analysisResultSchema, type AnalysisResult } from "@/domain/analysis";
-import { validateSentenceInput } from "@/domain/input";
+import { MAX_SENTENCE_LENGTH, validateSentenceInput } from "@/domain/input";
 import { GrammarLegend } from "@/components/GrammarLegend";
 import { HighlightedSentence } from "@/components/HighlightedSentence";
 
@@ -25,9 +25,19 @@ export function SentenceAnalyzer() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const requestInFlight = useRef(false);
+  const currentRequestId = useRef(0);
+  const excessCharacters = Math.max(0, sentence.length - MAX_SENTENCE_LENGTH);
+
+  useEffect(() => () => {
+    currentRequestId.current += 1;
+    requestInFlight.current = false;
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (requestInFlight.current || excessCharacters > 0) return;
 
     const validation = validateSentenceInput(sentence);
     if (!validation.ok) {
@@ -35,6 +45,8 @@ export function SentenceAnalyzer() {
       return;
     }
 
+    requestInFlight.current = true;
+    const requestId = ++currentRequestId.current;
     setError("");
     setResult(null);
     setLoading(true);
@@ -53,17 +65,23 @@ export function SentenceAnalyzer() {
       if (!parsed.success || parsed.data.original !== validation.value) {
         throw new Error(FALLBACK_ERROR);
       }
-      setResult(parsed.data);
+      if (requestId === currentRequestId.current) setResult(parsed.data);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : FALLBACK_ERROR);
+      if (requestId === currentRequestId.current) {
+        setError(cause instanceof Error ? cause.message : FALLBACK_ERROR);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === currentRequestId.current) {
+        requestInFlight.current = false;
+        setLoading(false);
+      }
     }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
+      if (requestInFlight.current || excessCharacters > 0) return;
       event.currentTarget.form?.requestSubmit();
     }
   }
@@ -76,7 +94,9 @@ export function SentenceAnalyzer() {
         </label>
         <textarea
           id="sentence"
-          maxLength={500}
+          disabled={loading}
+          aria-describedby={excessCharacters > 0 ? "sentence-count sentence-length-error" : "sentence-count"}
+          aria-invalid={excessCharacters > 0}
           value={sentence}
           onChange={(event) => {
             setSentence(event.target.value);
@@ -88,15 +108,23 @@ export function SentenceAnalyzer() {
         />
         <div className="input-card__footer">
           <div className="input-hint">
-            <span>{sentence.length} / 500</span>
+            <span id="sentence-count" role="status" aria-live="polite" aria-atomic="true">
+              {sentence.length} / {MAX_SENTENCE_LENGTH}
+            </span>
             <span className="shortcut">Ctrl + Enter 快速提交</span>
           </div>
-          <button className="primary-button" disabled={loading} type="submit">
+          <button className="primary-button" disabled={loading || excessCharacters > 0} type="submit">
             <span>{loading ? "分析中…" : "分析句子"}</span>
             {!loading && <span aria-hidden="true">→</span>}
           </button>
         </div>
       </form>
+
+      {excessCharacters > 0 && (
+        <p id="sentence-length-error" className="error-message" role="alert">
+          超出 {excessCharacters} 个字符，请缩短后再分析。
+        </p>
+      )}
 
       {error && (
         <p className="error-message" role="alert">
