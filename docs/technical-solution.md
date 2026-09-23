@@ -295,3 +295,21 @@ MVP 采用 Next.js、React、TypeScript、Zod 和 DeepSeek Responses API 构建�
 - [DeepSeek Responses API](https://api-docs.deepseek.com/api/create-response/)
 - [DeepSeek Responses API 使用指南](https://api-docs.deepseek.com/guides/responses_api/)
 - [DeepSeek JSON Output 指南](https://api-docs.deepseek.com/guides/json_mode/)
+
+## 15. 点词查询增量（2026-09-23）
+
+已分析句子支持按单词位置查询本句中文义和 IPA。原 MVP 的四色分类保持原有含义，点词不重新调用整句分析接口。
+
+新增 `POST /api/word`，严格请求为 `{ sentence, word, start, end }`。`src/domain/word.ts` 共享 UTF-16 完整词边界与 Zod 契约，句子最多 500 字符、单词最多 80 字符；路由按实际流入字节限制 JSON 请求至 4 KiB。返回原词、位置、简短中文义、可空原形、可空 `{ text, accent }` 音标及可空词典来源。响应为 `private, no-store`。
+
+服务端流程为独立客户端限流 → `lookupWord` → `wordDictionary` → `wordModel` → 运行时校验。词典只发送规范化后的查询词，保留大小写；模型接收原句、词位置、由服务端切片生成的 before／selected／after 上下文和具有词条／词性／释义关联的候选，明确区分同句重复词。模型只返回候选 ID；服务端取回 IPA 并标注有依据的英美口音，不接受自由生成的音标。来源链接只接受 HTTPS 的 en.wiktionary.org 及固定 CC BY-SA 4.0 许可地址。
+
+整条查询总预算 15 秒，词典阶段最多 5 秒；请求取消贯穿两个阶段，并以截止时间竞争防止不响应取消的供应商拖住查询。词典故障、缺词条或无合法候选允许返回仅释义；模型失败、未知词和超时有固定错误码与中文提示，无自动重试。原形为可选信息，同形不显示。
+
+查词限额固定每客户端每分钟 30 次，内存实例及 Redis 的 `word-lookup` 命名空间独立于 `sentence-analysis`。词典另有 `word-dictionary` 命名空间的全应用 UTC 整点小时 900 次预算；进程内词典缓存最多 500 项、成功有效期 1 小时，缓存命中不扣额度。429 按 Retry-After 或下一个 UTC 整点启动当前进程的冷却，多实例不共享该冷却状态。公开生产需配置 Upstash；共享预算不可用时停止外部词典请求。没有配置 Upstash 的生产环境默认仅释义，单进程部署可显式设置 `WORD_DICTIONARY_SINGLE_INSTANCE=true`。
+
+`src/client/wordLookup.ts` 管理最多 100 项页面内存结果，精确原句、词、位置、目标语言和版本组成 key；完整结果缓存 30 分钟，缺 IPA 30 秒，错误不缓存。同 key 请求合并，但订阅者独立取消，最后一个订阅者取消才停止上游。
+
+`WordSentence` 在完整原句上划词，按钮内部再按既有区间着色，避免颜色边界把词截断。`WordPopover` 通过 portal 放在句子区域外，保持原文 `textContent` 严格相等，支持加载、失败、重试、来源、键盘和触屏。取消信号与请求编号防止旧响应覆盖新词；替换结果时重新挂载交互子树。定位随视口／滚动／浮窗尺寸更新，重试时保持键盘焦点。
+
+新增确定性测试覆盖完整词、缓存、并发取消、预算及供应商降级；浏览器测试覆盖两种屏幕、同词不同位置、缓存命中、快速切词、关闭和重新分析。小样语义评测不代表整体准确率，详见[增量设计](./superpowers/specs/2026-09-22-word-lookup-design.md)和[实验记录](./experiments/2026-09-23-word-lookup-spike.md)。

@@ -273,12 +273,66 @@ textarea:focus-visible {
 }
 
 .highlighted-sentence {
+  white-space: pre-wrap;
   margin-top: 30px;
   overflow-wrap: anywhere;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(20px, 3vw, 26px);
   line-height: 2.1;
 }
+
+.word-button {
+  display: inline;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  white-space: inherit;
+  overflow-wrap: anywhere;
+}
+
+.highlighted-sentence--interactive .segment { padding-inline: 0; }
+.word-button:hover, .word-button[aria-expanded="true"] {
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1.5px;
+}
+.word-button:focus-visible { outline: 2px solid #7c3aed; outline-offset: 3px; }
+.word-lookup-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
+.word-popover {
+  position: fixed;
+  z-index: 50;
+  width: min(320px, calc(100vw - 24px));
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 40px rgb(39 35 31 / 18%);
+  padding: 16px;
+  color: var(--ink);
+  outline: none;
+}
+.word-popover__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.word-popover h2 { margin: 0; padding-top: 4px; font-family: Georgia, serif; font-size: 24px; }
+.word-popover__close { flex: 0 0 36px; height: 36px; border: 0; border-radius: 8px; background: #eee9e2; color: var(--ink); font-size: 23px; line-height: 1; }
+.word-popover__body { min-height: 42px; }
+.word-popover p { line-height: 1.6; }
+.word-popover__phonetic { margin: 5px 0 16px; font-size: 16px; }
+.word-popover__muted { color: var(--muted); font-size: 13px; }
+.word-popover__label { margin: 0 0 3px; color: var(--muted); font-size: 11px; }
+.word-popover__meaning { margin: 0 0 12px; font-size: 20px; font-weight: 600; }
+.word-popover__error { color: var(--danger-ink); font-size: 14px; }
+.word-popover__retry { min-height: 36px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font-size: 13px; }
+.word-popover__source { margin: 14px 0 0; border-top: 1px solid var(--line); padding-top: 10px; color: var(--muted); font-size: 10px; }
+.word-popover__source a { color: inherit; text-underline-offset: 2px; }
+.word-popover button:focus-visible, .word-popover a:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
 
 .segment {
   border-radius: 4px;

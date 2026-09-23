@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { analysisResultSchema, type AnalysisResult } from "@/domain/analysis";
 import { MAX_SENTENCE_LENGTH, validateSentenceInput } from "@/domain/input";
 import { GrammarLegend } from "@/components/GrammarLegend";
-import { HighlightedSentence } from "@/components/HighlightedSentence";
+import { WordSentence } from "@/components/WordSentence";
+import { WordLookupClient } from "@/client/wordLookup";
 
 const FALLBACK_ERROR = "分析失败，请重试。";
 
@@ -21,6 +22,7 @@ function readErrorMessage(value: unknown) {
 }
 
 export function SentenceAnalyzer() {
+  const [wordClient] = useState(() => new WordLookupClient());
   const [sentence, setSentence] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState("");
@@ -150,7 +152,7 @@ export function SentenceAnalyzer() {
             </div>
             <GrammarLegend />
           </div>
-          <HighlightedSentence result={result} />
+          <WordSentence result={result} client={wordClient} />
           <section className="translation-block">
             <h2 className="section-kicker">自然中文翻译</h2>
             <p className="translation">{result.translation}</p>

@@ -42,11 +42,12 @@ export class UpstashRateLimiter implements RateLimiter {
     private readonly limit: number,
     private readonly windowSeconds: number,
     private readonly fetcher: Fetcher = fetch,
+    private readonly namespace = "sentence-analysis",
   ) {}
 
   async consume(key: string) {
     const digest = createHash("sha256").update(key).digest("hex").slice(0, 32);
-    const redisKey = `rate-limit:sentence-analysis:${digest}`;
+    const redisKey = `rate-limit:${this.namespace}:${digest}`;
     const response = await this.fetcher(`${this.baseUrl.replace(/\/$/, "")}/pipeline`, {
       method: "POST",
       headers: {
@@ -58,6 +59,7 @@ export class UpstashRateLimiter implements RateLimiter {
         ["EXPIRE", redisKey, this.windowSeconds, "NX"],
       ]),
       cache: "no-store",
+      signal: AbortSignal.timeout(2_000),
     });
 
     if (!response.ok) throw new Error("shared rate limiter unavailable");
