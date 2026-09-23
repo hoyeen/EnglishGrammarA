@@ -1,0 +1,22 @@
+[
+  {"id":"left-verb","sentence":"She left because she was tired.","word":"left","occurrence":1,"expected":{"meaning":"离开","lemma":"leave","ipaNote":"left 当前词形 /left/ 或 /lɛft/；不是 leave"}},
+  {"id":"left-direction","sentence":"Turn left at the corner.","word":"left","occurrence":1,"expected":{"meaning":"向左","lemma":null,"ipaNote":"/left/ 或 /lɛft/"}},
+  {"id":"saw-verb","sentence":"I saw a saw.","word":"saw","occurrence":1,"expected":{"meaning":"看见","lemma":"see","ipaNote":"saw 当前词形；不是 see"}},
+  {"id":"saw-noun","sentence":"I saw a saw.","word":"saw","occurrence":2,"expected":{"meaning":"锯子","lemma":null,"ipaNote":"与动词 saw 可同音，但词义不同"}},
+  {"id":"read-present","sentence":"I read every day.","word":"read","occurrence":1,"expected":{"meaning":"阅读","lemma":null,"ipaNote":"/riːd/ 或 /ɹiːd/；不能是 /rɛd/"}},
+  {"id":"read-past","sentence":"I read it yesterday.","word":"read","occurrence":1,"expected":{"meaning":"读过／读了","lemma":null,"ipaNote":"/red/ 或 /ɹɛd/；不能是 /riːd/"}},
+  {"id":"went","sentence":"We went home after lunch.","word":"went","occurrence":1,"expected":{"meaning":"去／回（家）","lemma":"go","ipaNote":"/went/ 或 /wɛnt/；不是 go"}},
+  {"id":"bought","sentence":"She bought a new book.","word":"bought","occurrence":1,"expected":{"meaning":"买了","lemma":"buy","ipaNote":"bought 当前词形；不是 buy"}},
+  {"id":"lead-verb","sentence":"They lead the team.","word":"lead","occurrence":1,"expected":{"meaning":"带领／领导","lemma":null,"ipaNote":"/liːd/；不能是 /lɛd/"}},
+  {"id":"lead-metal","sentence":"The pipe is made of lead.","word":"lead","occurrence":1,"expected":{"meaning":"铅","lemma":null,"ipaNote":"/led/ 或 /lɛd/；不能是 /liːd/"}},
+  {"id":"wind-noun","sentence":"The wind is strong today.","word":"wind","occurrence":1,"expected":{"meaning":"风","lemma":null,"ipaNote":"/wɪnd/；不能是 /waɪnd/"}},
+  {"id":"wind-verb","sentence":"Please wind the rope around the pole.","word":"wind","occurrence":1,"expected":{"meaning":"缠绕","lemma":null,"ipaNote":"/waɪnd/；不能是 /wɪnd/"}},
+  {"id":"contraction","sentence":"I don't like coffee.","word":"don't","occurrence":1,"expected":{"meaning":"不（do not 的缩写）","lemma":null,"ipaNote":"don't 整体；不能借用 do 的音标"}},
+  {"id":"possessive","sentence":"This is John’s book.","word":"John’s","occurrence":1,"expected":{"meaning":"约翰的","lemma":"John","ipaNote":"若无所有格词形的可靠音标则为空；不能借用 John"}},
+  {"id":"hyphenated","sentence":"She is a well-known writer.","word":"well-known","occurrence":1,"expected":{"meaning":"著名的","lemma":null,"ipaNote":"完整复合词；不能只读 well 或 known"}},
+  {"id":"uppercase","sentence":"She lives in the US.","word":"US","occurrence":1,"expected":{"meaning":"美国","lemma":null,"ipaNote":"字母 U、S 的读法；不能与 us 合并"}},
+  {"id":"lowercase","sentence":"They invited us to dinner.","word":"us","occurrence":1,"expected":{"meaning":"我们（宾格），不额外推断是否包括听者","lemma":null,"ipaNote":"/ʌs/ 或 /əs/；不能读字母 US"}},
+  {"id":"bank-finance","sentence":"She deposited money at the bank.","word":"bank","occurrence":1,"expected":{"meaning":"银行","lemma":null,"ipaNote":"/bæŋk/"}},
+  {"id":"bank-river","sentence":"We sat on the river bank.","word":"bank","occurrence":1,"expected":{"meaning":"河岸","lemma":null,"ipaNote":"/bæŋk/，不能缓存银行释义"}},
+  {"id":"unknown","sentence":"I found a qzxnotaword.","word":"qzxnotaword","occurrence":1,"expected":{"meaning":"无法确定；不能编造具体中文义","lemma":null,"ipaNote":"无音标"}}
+]
