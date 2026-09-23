@@ -24,7 +24,7 @@ export default function Home() {
       </main>
 
       <footer className="site-footer">
-        <span>句子不会保存在本站数据库中，会发送给 DeepSeek 完成分析。</span>
+        <span>句子不会保存在本站数据库中，会发送给 AI 完成分析。</span>
         <span>四色表示句子功能，不表示单词词性。</span>
       </footer>
     </>
