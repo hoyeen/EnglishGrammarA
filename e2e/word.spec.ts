@@ -8,7 +8,30 @@ const answer = (start: number) => ({
   source: { url: "https://en.wiktionary.org/wiki/saw", license: { name: "CC BY-SA 4.0", url: "https://creativecommons.org/licenses/by-sa/4.0/" } },
 });
 
+type SpeechRecord = { action: "speak" | "cancel"; text?: string };
+
+declare global {
+  interface Window {
+    __speechHistory?: SpeechRecord[];
+  }
+}
+
 async function prepare(page: Page) {
+  await page.addInitScript(() => {
+    const history: SpeechRecord[] = [];
+    window.__speechHistory = history;
+    const synth = window.speechSynthesis;
+    if (synth) {
+      const origCancel = synth.cancel.bind(synth);
+      synth.speak = (u: SpeechSynthesisUtterance) => {
+        history.push({ action: "speak", text: u.text });
+      };
+      synth.cancel = () => {
+        history.push({ action: "cancel" });
+        origCancel();
+      };
+    }
+  });
   await page.route("**/api/analyze", route => route.fulfill({ json: analysis }));
   await page.goto("/");
   await page.getByRole("textbox", { name: "英文句子" }).fill(original);
@@ -33,17 +56,46 @@ for (const mobile of [false, true]) {
       await expect(dialog.getByText("看见", { exact: true })).toBeVisible();
       await expect(dialog).toContainText("英 /sɔː/");
       await expect(dialog.getByRole("link", { name: "Wiktionary 词条" })).toBeVisible();
+
+      // No auto-play on open
+      expect(await page.evaluate(() => window.__speechHistory?.filter(h => h.action === "speak").length ?? 0)).toBe(0);
+
+      // Pronunciation button and hint
+      const speakButton = dialog.getByRole("button", { name: "发音" });
+      await expect(speakButton).toBeVisible();
+      await expect(dialog.getByText("发音不保证匹配上下文音标")).toBeVisible();
+
+      // Manual playback
+      if (mobile) await speakButton.tap();
+      else await speakButton.click();
+      await expect(dialog.getByRole("button", { name: "停止" })).toBeVisible();
+      expect(await page.evaluate(() => window.__speechHistory?.filter(h => h.action === "speak").map(h => h.text))).toEqual(["saw"]);
+
       const box = await dialog.boundingBox();
       expect(box!.x).toBeGreaterThanOrEqual(0); expect(box!.y).toBeGreaterThanOrEqual(0);
       expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
       await page.screenshot({ path: testInfo.outputPath("word-popup.png"), fullPage: true });
+
+      // Close stops playback
       if (mobile) await dialog.getByRole("button", { name: "关闭查词" }).tap();
       else await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
+      expect(await page.evaluate(() => window.__speechHistory?.slice(-1)[0]?.action)).toBe("cancel");
       await expect(words.nth(0)).toBeFocused();
+
+      // Second occurrence playback and word switching stops previous playback
       if (mobile) await words.nth(1).tap(); else await words.nth(1).click();
       await expect(dialog.getByText("锯子", { exact: true })).toBeVisible();
+      const speakButton2 = dialog.getByRole("button", { name: "发音" });
+      if (mobile) await speakButton2.tap(); else await speakButton2.click();
+      await expect(dialog.getByRole("button", { name: "停止" })).toBeVisible();
+
+      if (mobile) await words.nth(0).tap(); else await words.nth(0).click();
+      await expect(dialog.getByText("看见", { exact: true })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "发音" })).toBeVisible();
+      expect(await page.evaluate(() => window.__speechHistory?.slice(-1)[0]?.action)).toBe("cancel");
+
       await dialog.getByRole("button", { name: "关闭查词" }).click();
       await words.nth(1).click();
       await expect(dialog.getByText("锯子", { exact: true })).toBeVisible();

@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { WordResult, WordToken } from "@/domain/word";
+import { WordPronunciation } from "@/components/WordPronunciation";
 
 export interface WordPopoverState {
   token: WordToken;
@@ -86,6 +87,7 @@ export function WordPopover({ id, state, sentenceRef, onClose, onRetry }: {
         <h2 id={`${id}-title`}>{state.token.word}</h2>
         <button type="button" className="word-popover__close" aria-label="关闭查词" onClick={() => onClose()}>×</button>
       </div>
+      <WordPronunciation key={JSON.stringify(state.token)} word={state.token.word} />
       <div aria-live="polite" aria-atomic="true" className="word-popover__body">
         {state.loading && <p className="word-popover__muted" role="status">正在查询…</p>}
         {state.error && <p className="word-popover__error" role="alert">{state.error}</p>}

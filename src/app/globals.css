@@ -322,6 +322,11 @@ textarea:focus-visible {
 .word-popover__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .word-popover h2 { margin: 0; padding-top: 4px; font-family: Georgia, serif; font-size: 24px; }
 .word-popover__close { flex: 0 0 36px; height: 36px; border: 0; border-radius: 8px; background: #eee9e2; color: var(--ink); font-size: 23px; line-height: 1; }
+.word-pronunciation { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap; }
+.word-pronunciation__button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fbf9f6; color: var(--ink); font-size: 12px; cursor: pointer; }
+.word-pronunciation__button:hover { background: #eee9e2; }
+.word-pronunciation__hint { color: var(--muted); font-size: 11px; }
+.word-pronunciation__unsupported { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
 .word-popover__body { min-height: 42px; }
 .word-popover p { line-height: 1.6; }
 .word-popover__phonetic { margin: 5px 0 16px; font-size: 16px; }
