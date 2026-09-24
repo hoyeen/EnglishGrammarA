@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "句析 · 英语长难句分析",
-  description: "用四色标注看清英语长难句结构，并获得自然中文翻译。",
+  title: "句析 · 英文句子分析与短语翻译",
+  description: "用四色标注看清英语句子结构，快速翻译英文单词和短语。",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

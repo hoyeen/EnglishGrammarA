@@ -124,6 +124,48 @@ h1 {
   margin: 0 auto;
 }
 
+.study-tabs {
+  display: flex;
+  width: min(800px, 100%);
+  gap: 8px;
+  margin: 0 auto 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.study-tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 12px 16px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.study-tab--active {
+  border-bottom-color: #7c3aed;
+  color: var(--ink);
+}
+
+.study-tab:focus-visible {
+  outline: 3px solid #c4b5fd;
+  outline-offset: -3px;
+}
+
+.translation-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.translation-input { min-height: 80px; }
+
+.translation-result .translation { margin-bottom: 0; overflow-wrap: anywhere; }
+
+.translation-alternatives { margin-top: 22px; }
+.translation-alternatives ul { margin: 8px 0 0; padding-left: 22px; line-height: 1.8; }
+
 .input-card,
 .result-card,
 .result-skeleton {
