@@ -71,6 +71,22 @@ describe("WordPronunciation", () => {
     expect(mockSynthesis.cancel).not.toHaveBeenCalled();
   });
 
+  it("does not cancel unrelated speech when closed without playing", () => {
+    const { unmount } = render(<WordPronunciation word="saw" />);
+    unmount();
+    expect(mockSynthesis.cancel).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel unrelated speech after its own utterance has ended", () => {
+    const { unmount } = render(<WordPronunciation word="saw" />);
+    fireEvent.click(screen.getByRole("button", { name: "发音" }));
+    const utterance = mockSynthesis.speak.mock.calls[0][0] as MockSpeechSynthesisUtterance;
+    act(() => utterance.onend?.(new Event("end")));
+    mockSynthesis.cancel.mockClear();
+    unmount();
+    expect(mockSynthesis.cancel).not.toHaveBeenCalled();
+  });
+
   it("handles manual play by clearing queue and speaking the word", async () => {
     const user = userEvent.setup();
     render(<WordPronunciation word="saw" />);

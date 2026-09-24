@@ -6,6 +6,7 @@ export function WordPronunciation({ word }: { word: string }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackIdRef = useRef(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ownsPlaybackRef = useRef(false);
 
   const isSupported =
     typeof window !== "undefined" &&
@@ -19,9 +20,10 @@ export function WordPronunciation({ word }: { word: string }) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      if (typeof window !== "undefined" && window.speechSynthesis) {
+      if (ownsPlaybackRef.current && typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
+      ownsPlaybackRef.current = false;
     };
   }, []);
 
@@ -39,9 +41,10 @@ export function WordPronunciation({ word }: { word: string }) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    if (typeof window !== "undefined" && window.speechSynthesis) {
+    if (ownsPlaybackRef.current && typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    ownsPlaybackRef.current = false;
     setIsPlaying(false);
   };
 
@@ -75,6 +78,7 @@ export function WordPronunciation({ word }: { word: string }) {
 
     const handleFinish = () => {
       if (playbackIdRef.current === currentId) {
+        ownsPlaybackRef.current = false;
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
@@ -88,14 +92,16 @@ export function WordPronunciation({ word }: { word: string }) {
 
     timeoutRef.current = setTimeout(() => {
       if (playbackIdRef.current === currentId) {
-        if (typeof window !== "undefined" && window.speechSynthesis) {
+        if (ownsPlaybackRef.current && typeof window !== "undefined" && window.speechSynthesis) {
           window.speechSynthesis.cancel();
         }
+        ownsPlaybackRef.current = false;
         setIsPlaying(false);
         timeoutRef.current = null;
       }
     }, 15000);
 
+    ownsPlaybackRef.current = true;
     setIsPlaying(true);
     try {
       window.speechSynthesis.speak(utterance);
